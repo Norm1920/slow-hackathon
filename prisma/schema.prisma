@@ -69,3 +69,37 @@ model VerificationToken {
 // Your app tables — add your own models below
 // After editing, run: npm run db:push
 // ═══════════════════════════════════════════════════════════════
+
+model Creator {
+  id            String      @id @default(cuid())
+  name          String
+  platform      String
+  description   String
+  imageUrl      String?
+  profileUrl    String?
+  followerCount String?
+  sortOrder     Int         @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  postStyles    PostStyle[]
+
+  @@map("creators")
+}
+
+model PostStyle {
+  id          String   @id @default(cuid())
+  creatorId   String
+  title       String
+  description String
+  example     String?
+  videoId     String?
+  icon        String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  creator     Creator  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@map("post_styles")
+}
