@@ -104,33 +104,31 @@ function createOverlayImage(
     const img = new Image()
     img.onload = () => {
       const canvas = document.createElement("canvas")
-      // Use 1080x1080 square for social media
-      const size = 1080
-      canvas.width = size
-      canvas.height = size
+      // Use the image's actual dimensions (scale up small images to min 1080 wide)
+      const minWidth = 1080
+      const scale = img.width < minWidth ? minWidth / img.width : 1
+      const w = Math.round(img.width * scale)
+      const h = Math.round(img.height * scale)
+      canvas.width = w
+      canvas.height = h
       const ctx = canvas.getContext("2d")
       if (!ctx) return reject(new Error("Canvas not supported"))
 
-      // Draw product image scaled to fill the square
-      const scale = Math.max(size / img.width, size / img.height)
-      const w = img.width * scale
-      const h = img.height * scale
-      const x = (size - w) / 2
-      const y = (size - h) / 2
-      ctx.drawImage(img, x, y, w, h)
+      // Draw the full product image — no cropping
+      ctx.drawImage(img, 0, 0, w, h)
 
       // Dark gradient overlay at top and bottom for text readability
-      const topGrad = ctx.createLinearGradient(0, 0, 0, size * 0.35)
+      const topGrad = ctx.createLinearGradient(0, 0, 0, h * 0.3)
       topGrad.addColorStop(0, "rgba(0, 0, 0, 0.7)")
       topGrad.addColorStop(1, "rgba(0, 0, 0, 0)")
       ctx.fillStyle = topGrad
-      ctx.fillRect(0, 0, size, size * 0.35)
+      ctx.fillRect(0, 0, w, h * 0.3)
 
-      const botGrad = ctx.createLinearGradient(0, size * 0.7, 0, size)
+      const botGrad = ctx.createLinearGradient(0, h * 0.75, 0, h)
       botGrad.addColorStop(0, "rgba(0, 0, 0, 0)")
       botGrad.addColorStop(1, "rgba(0, 0, 0, 0.75)")
       ctx.fillStyle = botGrad
-      ctx.fillRect(0, size * 0.7, size, size * 0.3)
+      ctx.fillRect(0, h * 0.75, w, h * 0.25)
 
       // Draw headline at the top
       ctx.textAlign = "center"
@@ -140,10 +138,10 @@ function createOverlayImage(
       ctx.shadowOffsetX = 2
       ctx.shadowOffsetY = 2
 
-      // Auto-size font to fit width
-      let fontSize = 64
+      // Scale font relative to image width
+      let fontSize = Math.round(w * 0.05)
       ctx.font = `bold ${fontSize}px sans-serif`
-      while (ctx.measureText(headline).width > size * 0.85 && fontSize > 24) {
+      while (ctx.measureText(headline).width > w * 0.85 && fontSize > 20) {
         fontSize -= 2
         ctx.font = `bold ${fontSize}px sans-serif`
       }
@@ -154,7 +152,7 @@ function createOverlayImage(
       let currentLine = ""
       for (const word of words) {
         const testLine = currentLine ? `${currentLine} ${word}` : word
-        if (ctx.measureText(testLine).width > size * 0.85) {
+        if (ctx.measureText(testLine).width > w * 0.85) {
           if (currentLine) lines.push(currentLine)
           currentLine = word
         } else {
@@ -164,10 +162,10 @@ function createOverlayImage(
       if (currentLine) lines.push(currentLine)
 
       // Draw each line
-      const lineHeight = fontSize * 1.2
-      const startY = 60 + lineHeight
+      const lineHeight = fontSize * 1.25
+      const startY = Math.round(h * 0.05) + lineHeight
       lines.forEach((line, i) => {
-        ctx.fillText(line, size / 2, startY + i * lineHeight)
+        ctx.fillText(line, w / 2, startY + i * lineHeight)
       })
 
       // Draw CTA button at the bottom
@@ -176,12 +174,12 @@ function createOverlayImage(
         ctx.shadowOffsetX = 0
         ctx.shadowOffsetY = 0
 
-        const ctaFontSize = 28
+        const ctaFontSize = Math.round(w * 0.025)
         ctx.font = `bold ${ctaFontSize}px sans-serif`
         const ctaWidth = ctx.measureText(cta).width + 60
-        const ctaHeight = 52
-        const ctaX = (size - ctaWidth) / 2
-        const ctaY = size - 80 - ctaHeight
+        const ctaHeight = ctaFontSize * 2.2
+        const ctaX = (w - ctaWidth) / 2
+        const ctaY = h - Math.round(h * 0.06) - ctaHeight
 
         // Button background
         ctx.fillStyle = "#FFFFFF"
@@ -192,7 +190,7 @@ function createOverlayImage(
         // Button text
         ctx.fillStyle = "#000000"
         ctx.textAlign = "center"
-        ctx.fillText(cta, size / 2, ctaY + ctaHeight / 2 + ctaFontSize / 3)
+        ctx.fillText(cta, w / 2, ctaY + ctaHeight / 2 + ctaFontSize / 3)
       }
 
       resolve(canvas.toDataURL("image/png"))
