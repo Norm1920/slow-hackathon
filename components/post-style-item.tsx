@@ -17,6 +17,7 @@ import {
   Scissors,
   Play,
   MessagesSquare,
+  Moon,
   type LucideIcon,
 } from "lucide-react"
 
@@ -39,6 +40,7 @@ const iconMap: Record<string, LucideIcon> = {
   Scissors,
   Play,
   MessagesSquare,
+  Moon,
 }
 
 interface PostStyleItemProps {
