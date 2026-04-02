@@ -90,6 +90,9 @@ export interface GenerateRequest {
   imageMediaType: "image/png" | "image/jpeg" | "image/webp"
   brand: BrandName
   productTitle?: string
+  retailPrice?: string
+  discountPrice?: string
+  pieceCount?: string
   audience: string
   angle: string
   platforms: Platform[]

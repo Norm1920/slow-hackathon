@@ -21,7 +21,7 @@ export async function CreatorGrid() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {creators.map((creator) => (
+      {creators.map((creator: any) => (
         <CreatorCard
           key={creator.id}
           name={creator.name}

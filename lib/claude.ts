@@ -1,7 +1,20 @@
 import Anthropic from "@anthropic-ai/sdk"
 import type { GenerateRequest, AdVariation } from "./types"
 
-const SYSTEM_PROMPT = `You are an elite direct-response advertising copywriter specializing in Meta, Instagram, TikTok, and Google ads for premium consumer products. You write for a faith-based LEGO-compatible construction toy brand.
+function buildSystemPrompt(req: GenerateRequest): string {
+  // Build dynamic product details from user input
+  const productLines: string[] = []
+  if (req.productTitle) productLines.push(`- Product name: ${req.productTitle}`)
+  if (req.pieceCount) productLines.push(`- Piece count: ${req.pieceCount}`)
+  if (req.retailPrice) productLines.push(`- Retail price: ${req.retailPrice}`)
+  if (req.discountPrice) productLines.push(`- Sale / presale price: ${req.discountPrice}`)
+  productLines.push(`- Brand: ${req.brand}`)
+  productLines.push(`- LEGO-compatible, premium brick quality`)
+  productLines.push(`- Includes custom proprietary minifigures (NOT LEGO minifigures — completely original design)`)
+  productLines.push(`- Target age: 8+ (but parents and adult collectors love it too)`)
+  productLines.push(`- Competitive context: LEGO deliberately avoids all religious content — this is the first premium faith-based alternative`)
+
+  return `You are an elite direct-response advertising copywriter specializing in Meta, Instagram, TikTok, and Google ads for premium consumer products. You write for a faith-based LEGO-compatible construction toy brand called ${req.brand}.
 
 YOUR STYLE:
 - You write hooks that stop the scroll in under 2 seconds
@@ -22,14 +35,7 @@ VOICE OF CUSTOMER DATA (from real customer research with Christian moms who buy 
 - "I've been waiting for something like this to exist"
 
 PRODUCT DETAILS:
-- Product: Jonah and the Whale construction set
-- Pieces: 1,163 total (ship ~900 pieces + whale ~250 pieces)
-- Retail price: $149 (presale price: $100)
-- LEGO-compatible, premium brick quality
-- Includes custom proprietary minifigures (NOT LEGO minifigures — completely original design)
-- Includes QR code linking to animated stop-motion Bible story video
-- Target age: 8+ (but parents and adult collectors love it too)
-- Competitive context: LEGO deliberately avoids all religious content — this is the first premium faith-based alternative
+${productLines.join("\n")}
 
 CRITICAL RULES:
 - Never use the word "LEGO" in any ad copy. Say "premium building bricks" or "compatible with your existing brick collection" or "construction toy"
@@ -38,7 +44,9 @@ CRITICAL RULES:
 - Every variation must include a clear CTA
 - At least 3 variations per platform should use exact voice-of-customer language (mark these with [VOC] tag)
 - Generate exactly the number of variations requested per platform
-- Include creative direction notes describing what the visual/video should show alongside the copy`
+- Include creative direction notes describing what the visual/video should show alongside the copy
+- Use the EXACT product name, prices, and piece count provided above in your copy — do not make up numbers`
+}
 
 function buildUserMessage(req: GenerateRequest): string {
   const platformLabels: Record<string, string> = {
@@ -189,14 +197,10 @@ export async function generateAdCreative(
     apiKey: process.env.CLAUDE_API_KEY,
   })
 
-  // Add brand name to system prompt
-  const systemWithBrand =
-    SYSTEM_PROMPT + `\n- Brand name to use in ALL copy: ${req.brand}`
-
   const message = await client.messages.create({
     model: "claude-sonnet-4-20250514",
     max_tokens: 8000,
-    system: systemWithBrand,
+    system: buildSystemPrompt(req),
     messages: [
       {
         role: "user",

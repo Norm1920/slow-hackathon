@@ -1,14 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/db/prisma"
-
-export async function getCreators() {
-  return await prisma.creator.findMany({
-    include: {
-      postStyles: {
-        orderBy: { sortOrder: "asc" },
-      },
-    },
-    orderBy: { sortOrder: "asc" },
-  })
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getCreators(): Promise<any[]> {
+  return []
 }

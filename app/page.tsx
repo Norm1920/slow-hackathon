@@ -29,8 +29,11 @@ const LOADING_MESSAGES = [
 ]
 
 export default function Home() {
-  // Product title
+  // Product details
   const [productTitle, setProductTitle] = useState("")
+  const [retailPrice, setRetailPrice] = useState("")
+  const [discountPrice, setDiscountPrice] = useState("")
+  const [pieceCount, setPieceCount] = useState("")
 
   // Image state
   const [imageBase64, setImageBase64] = useState<string | null>(null)
@@ -111,6 +114,9 @@ export default function Home() {
           imageMediaType,
           brand: "Tektones",
           productTitle: productTitle.trim() || undefined,
+          retailPrice: retailPrice.trim() || undefined,
+          discountPrice: discountPrice.trim() || undefined,
+          pieceCount: pieceCount.trim() || undefined,
           audience: getAudienceText(),
           angle: getAngleText(),
           platforms,
@@ -157,12 +163,38 @@ export default function Home() {
             <Card>
               <CardContent className="pt-6 space-y-4">
                 <div>
-                  <h2 className="text-sm font-semibold mb-2">Product Title</h2>
+                  <h2 className="text-sm font-semibold mb-2">Product Name</h2>
                   <Input
                     placeholder="e.g. Jonah and the Whale"
                     value={productTitle}
                     onChange={(e) => setProductTitle(e.target.value)}
                   />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <h2 className="text-sm font-semibold mb-2">Retail Price</h2>
+                    <Input
+                      placeholder="$149"
+                      value={retailPrice}
+                      onChange={(e) => setRetailPrice(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-semibold mb-2">Sale Price</h2>
+                    <Input
+                      placeholder="$100"
+                      value={discountPrice}
+                      onChange={(e) => setDiscountPrice(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-semibold mb-2">Pieces</h2>
+                    <Input
+                      placeholder="1,163"
+                      value={pieceCount}
+                      onChange={(e) => setPieceCount(e.target.value)}
+                    />
+                  </div>
                 </div>
                 <div>
                   <h2 className="text-sm font-semibold mb-2">Product Image</h2>
