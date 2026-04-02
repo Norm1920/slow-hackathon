@@ -124,7 +124,17 @@ export default function Home() {
         }),
       })
 
-      const data = await response.json()
+      const text = await response.text()
+      let data
+      try {
+        data = JSON.parse(text)
+      } catch {
+        throw new Error(
+          text.length > 200
+            ? "Image too large. Try a smaller image (under 5MB)."
+            : `Server error: ${text.slice(0, 100)}`
+        )
+      }
 
       if (!response.ok) {
         throw new Error(data.error || "Generation failed")

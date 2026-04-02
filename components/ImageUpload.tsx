@@ -27,13 +27,35 @@ export function ImageUpload({ onImageSelect, onImageClear, preview }: ImageUploa
         return
       }
 
+      // Resize image to keep payload under Vercel's 4.5MB limit
       const reader = new FileReader()
       reader.onload = (e) => {
         const result = e.target?.result as string
-        // result is "data:image/png;base64,..."
-        const base64 = result.split(",")[1]
-        const mediaType = file.type as "image/png" | "image/jpeg" | "image/webp"
-        onImageSelect(base64, mediaType)
+        const img = new Image()
+        img.onload = () => {
+          const MAX_DIMENSION = 1200
+          let { width, height } = img
+
+          // Scale down if needed
+          if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+            const scale = MAX_DIMENSION / Math.max(width, height)
+            width = Math.round(width * scale)
+            height = Math.round(height * scale)
+          }
+
+          const canvas = document.createElement("canvas")
+          canvas.width = width
+          canvas.height = height
+          const ctx = canvas.getContext("2d")
+          if (!ctx) return
+          ctx.drawImage(img, 0, 0, width, height)
+
+          // Output as JPEG at 0.8 quality to keep size small
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.8)
+          const base64 = dataUrl.split(",")[1]
+          onImageSelect(base64, "image/jpeg")
+        }
+        img.src = result
       }
       reader.readAsDataURL(file)
     },
