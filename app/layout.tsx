@@ -10,8 +10,8 @@ const defaultUrl = process.env.VERCEL_URL
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "Hackathon Starter",
-  description: "Next.js + Auth.js + Prisma starter template",
+  title: "Tektones Ad Engine",
+  description: "Generate ad creative across every paid channel with AI",
 }
 
 const geistSans = Geist({
