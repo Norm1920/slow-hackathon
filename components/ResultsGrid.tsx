@@ -14,6 +14,9 @@ interface ResultsGridProps {
   wantImages: boolean
   productImageBase64?: string | null
   productImageMediaType?: string | null
+  productTitle?: string
+  retailPrice?: string
+  discountPrice?: string
 }
 
 const PLATFORM_LABELS: Record<Platform, string> = {
@@ -24,7 +27,7 @@ const PLATFORM_LABELS: Record<Platform, string> = {
   general: "General",
 }
 
-export function ResultsGrid({ variations, wantImages, productImageBase64, productImageMediaType }: ResultsGridProps) {
+export function ResultsGrid({ variations, wantImages, productImageBase64, productImageMediaType, productTitle, retailPrice, discountPrice }: ResultsGridProps) {
   const [copiedAll, setCopiedAll] = useState(false)
 
   const grouped = variations.reduce(
@@ -109,7 +112,7 @@ export function ResultsGrid({ variations, wantImages, productImageBase64, produc
         <TabsContent value="all" className="mt-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {variations.map((v, i) => (
-              <AdCard key={i} variation={v} index={i} showImageButton={wantImages} productImageBase64={productImageBase64} productImageMediaType={productImageMediaType} />
+              <AdCard key={i} variation={v} index={i} showImageButton={wantImages} productImageBase64={productImageBase64} productImageMediaType={productImageMediaType} productTitle={productTitle} retailPrice={retailPrice} discountPrice={discountPrice} />
             ))}
           </div>
         </TabsContent>
@@ -118,7 +121,7 @@ export function ResultsGrid({ variations, wantImages, productImageBase64, produc
           <TabsContent key={key} value={key} className="mt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {grouped[key].map((v, i) => (
-                <AdCard key={i} variation={v} index={i} showImageButton={wantImages} productImageBase64={productImageBase64} productImageMediaType={productImageMediaType} />
+                <AdCard key={i} variation={v} index={i} showImageButton={wantImages} productImageBase64={productImageBase64} productImageMediaType={productImageMediaType} productTitle={productTitle} retailPrice={retailPrice} discountPrice={discountPrice} />
               ))}
             </div>
           </TabsContent>

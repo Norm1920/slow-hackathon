@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { Copy, Check, ImageIcon, Download } from "lucide-react"
+import { Copy, Check, ImageIcon, Download, Shuffle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -13,6 +13,9 @@ interface AdCardProps {
   showImageButton?: boolean
   productImageBase64?: string | null
   productImageMediaType?: string | null
+  productTitle?: string
+  retailPrice?: string
+  discountPrice?: string
 }
 
 function getPlatformLabel(platform: string): string {
@@ -76,7 +79,6 @@ function getCardText(v: AdVariation): string {
   }
 }
 
-// Get the headline/hook text for overlay
 function getOverlayText(v: AdVariation): { headline: string; cta: string } {
   switch (v.platform) {
     case "meta_feed":
@@ -94,19 +96,58 @@ function getOverlayText(v: AdVariation): { headline: string; cta: string } {
   }
 }
 
-// Canvas-based text overlay on the product image
-function createOverlayImage(
-  imageSrc: string,
-  headline: string,
+// ─── Layout styles ───────────────────────────────────────────
+type LayoutStyle = "top-bottom" | "bottom-bar" | "centered" | "left-panel"
+
+const LAYOUT_STYLES: LayoutStyle[] = ["top-bottom", "bottom-bar", "centered", "left-panel"]
+
+const ACCENT_COLORS = [
+  { bg: "rgba(30, 58, 138, 0.9)", text: "#FFFFFF", cta: "#FACC15", ctaText: "#1E3A5F" },  // navy + gold
+  { bg: "rgba(0, 0, 0, 0.85)", text: "#FFFFFF", cta: "#FFFFFF", ctaText: "#000000" },      // classic black
+  { bg: "rgba(120, 53, 15, 0.9)", text: "#FFFFFF", cta: "#FCD34D", ctaText: "#78350F" },   // warm brown + amber
+  { bg: "rgba(15, 23, 42, 0.9)", text: "#F8FAFC", cta: "#38BDF8", ctaText: "#0F172A" },    // slate + sky
+]
+
+function wordWrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const words = text.split(" ")
+  const lines: string[] = []
+  let currentLine = ""
+  for (const word of words) {
+    const testLine = currentLine ? `${currentLine} ${word}` : word
+    if (ctx.measureText(testLine).width > maxWidth) {
+      if (currentLine) lines.push(currentLine)
+      currentLine = word
+    } else {
+      currentLine = testLine
+    }
+  }
+  if (currentLine) lines.push(currentLine)
+  return lines
+}
+
+function drawRoundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath()
+  ctx.roundRect(x, y, w, h, r)
+  ctx.fill()
+}
+
+interface OverlayOptions {
+  headline: string
   cta: string
-): Promise<string> {
+  productTitle?: string
+  retailPrice?: string
+  discountPrice?: string
+  layout: LayoutStyle
+  colorIndex: number
+}
+
+function createOverlayImage(imageSrc: string, opts: OverlayOptions): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     img.onload = () => {
       const canvas = document.createElement("canvas")
-      // Use the image's actual dimensions (scale up small images to min 1080 wide)
-      const minWidth = 1080
-      const scale = img.width < minWidth ? minWidth / img.width : 1
+      const minW = 1080
+      const scale = img.width < minW ? minW / img.width : 1
       const w = Math.round(img.width * scale)
       const h = Math.round(img.height * scale)
       canvas.width = w
@@ -114,83 +155,243 @@ function createOverlayImage(
       const ctx = canvas.getContext("2d")
       if (!ctx) return reject(new Error("Canvas not supported"))
 
-      // Draw the full product image — no cropping
+      const colors = ACCENT_COLORS[opts.colorIndex % ACCENT_COLORS.length]
+
+      // Draw the full product image
       ctx.drawImage(img, 0, 0, w, h)
 
-      // Dark gradient overlay at top and bottom for text readability
-      const topGrad = ctx.createLinearGradient(0, 0, 0, h * 0.3)
-      topGrad.addColorStop(0, "rgba(0, 0, 0, 0.7)")
-      topGrad.addColorStop(1, "rgba(0, 0, 0, 0)")
-      ctx.fillStyle = topGrad
-      ctx.fillRect(0, 0, w, h * 0.3)
+      const headlineFontSize = Math.round(w * 0.048)
+      const subFontSize = Math.round(w * 0.028)
+      const ctaFontSize = Math.round(w * 0.024)
+      const pad = Math.round(w * 0.04)
 
-      const botGrad = ctx.createLinearGradient(0, h * 0.75, 0, h)
-      botGrad.addColorStop(0, "rgba(0, 0, 0, 0)")
-      botGrad.addColorStop(1, "rgba(0, 0, 0, 0.75)")
-      ctx.fillStyle = botGrad
-      ctx.fillRect(0, h * 0.75, w, h * 0.25)
+      // ─── Layout: top-bottom ──────────────────────
+      if (opts.layout === "top-bottom") {
+        // Top gradient
+        const topGrad = ctx.createLinearGradient(0, 0, 0, h * 0.35)
+        topGrad.addColorStop(0, colors.bg)
+        topGrad.addColorStop(1, "rgba(0,0,0,0)")
+        ctx.fillStyle = topGrad
+        ctx.fillRect(0, 0, w, h * 0.35)
 
-      // Draw headline at the top
-      ctx.textAlign = "center"
-      ctx.fillStyle = "#FFFFFF"
-      ctx.shadowColor = "rgba(0, 0, 0, 0.5)"
-      ctx.shadowBlur = 8
-      ctx.shadowOffsetX = 2
-      ctx.shadowOffsetY = 2
+        // Bottom gradient
+        const botGrad = ctx.createLinearGradient(0, h * 0.7, 0, h)
+        botGrad.addColorStop(0, "rgba(0,0,0,0)")
+        botGrad.addColorStop(1, colors.bg)
+        ctx.fillStyle = botGrad
+        ctx.fillRect(0, h * 0.7, w, h * 0.3)
 
-      // Scale font relative to image width
-      let fontSize = Math.round(w * 0.05)
-      ctx.font = `bold ${fontSize}px sans-serif`
-      while (ctx.measureText(headline).width > w * 0.85 && fontSize > 20) {
-        fontSize -= 2
-        ctx.font = `bold ${fontSize}px sans-serif`
-      }
+        // Headline top
+        ctx.textAlign = "center"
+        ctx.fillStyle = colors.text
+        ctx.shadowColor = "rgba(0,0,0,0.6)"
+        ctx.shadowBlur = 6
+        ctx.font = `bold ${headlineFontSize}px sans-serif`
+        const lines = wordWrap(ctx, opts.headline, w * 0.85)
+        const lineH = headlineFontSize * 1.25
+        lines.forEach((line, i) => {
+          ctx.fillText(line, w / 2, pad + lineH + i * lineH)
+        })
 
-      // Word wrap if still too long
-      const words = headline.split(" ")
-      const lines: string[] = []
-      let currentLine = ""
-      for (const word of words) {
-        const testLine = currentLine ? `${currentLine} ${word}` : word
-        if (ctx.measureText(testLine).width > w * 0.85) {
-          if (currentLine) lines.push(currentLine)
-          currentLine = word
-        } else {
-          currentLine = testLine
+        // Product info + CTA at bottom
+        ctx.shadowBlur = 0
+        let bottomY = h - pad
+
+        if (opts.cta) {
+          ctx.font = `bold ${ctaFontSize}px sans-serif`
+          const ctaW = ctx.measureText(opts.cta).width + 50
+          const ctaH = ctaFontSize * 2.2
+          ctx.fillStyle = colors.cta
+          drawRoundRect(ctx, (w - ctaW) / 2, bottomY - ctaH, ctaW, ctaH, 6)
+          ctx.fillStyle = colors.ctaText
+          ctx.textAlign = "center"
+          ctx.fillText(opts.cta, w / 2, bottomY - ctaH / 2 + ctaFontSize / 3)
+          bottomY -= ctaH + pad * 0.6
+        }
+
+        if (opts.discountPrice || opts.retailPrice) {
+          ctx.fillStyle = colors.text
+          ctx.font = `bold ${subFontSize}px sans-serif`
+          const priceText = opts.discountPrice
+            ? `${opts.discountPrice}${opts.retailPrice ? ` (was ${opts.retailPrice})` : ""}`
+            : opts.retailPrice || ""
+          ctx.textAlign = "center"
+          ctx.fillText(priceText, w / 2, bottomY)
         }
       }
-      if (currentLine) lines.push(currentLine)
 
-      // Draw each line
-      const lineHeight = fontSize * 1.25
-      const startY = Math.round(h * 0.05) + lineHeight
-      lines.forEach((line, i) => {
-        ctx.fillText(line, w / 2, startY + i * lineHeight)
-      })
+      // ─── Layout: bottom-bar ──────────────────────
+      if (opts.layout === "bottom-bar") {
+        const barH = Math.round(h * 0.28)
+        ctx.fillStyle = colors.bg
+        ctx.fillRect(0, h - barH, w, barH)
 
-      // Draw CTA button at the bottom
-      if (cta) {
-        ctx.shadowBlur = 0
-        ctx.shadowOffsetX = 0
-        ctx.shadowOffsetY = 0
+        // Thin accent line
+        ctx.fillStyle = colors.cta
+        ctx.fillRect(0, h - barH, w, 3)
 
-        const ctaFontSize = Math.round(w * 0.025)
-        ctx.font = `bold ${ctaFontSize}px sans-serif`
-        const ctaWidth = ctx.measureText(cta).width + 60
-        const ctaHeight = ctaFontSize * 2.2
-        const ctaX = (w - ctaWidth) / 2
-        const ctaY = h - Math.round(h * 0.06) - ctaHeight
+        let curY = h - barH + pad
 
-        // Button background
-        ctx.fillStyle = "#FFFFFF"
-        ctx.beginPath()
-        ctx.roundRect(ctaX, ctaY, ctaWidth, ctaHeight, 8)
-        ctx.fill()
+        // Headline
+        ctx.textAlign = "left"
+        ctx.fillStyle = colors.text
+        ctx.font = `bold ${headlineFontSize}px sans-serif`
+        const lines = wordWrap(ctx, opts.headline, w - pad * 2)
+        const lineH = headlineFontSize * 1.2
+        lines.forEach((line, i) => {
+          ctx.fillText(line, pad, curY + lineH + i * lineH)
+        })
+        curY += lineH * lines.length + pad * 0.5
 
-        // Button text
-        ctx.fillStyle = "#000000"
+        // Price row
+        if (opts.discountPrice || opts.retailPrice) {
+          ctx.font = `bold ${subFontSize}px sans-serif`
+          ctx.fillStyle = colors.cta
+          const priceText = opts.discountPrice || opts.retailPrice || ""
+          ctx.fillText(priceText, pad, curY + subFontSize)
+          if (opts.discountPrice && opts.retailPrice) {
+            const priceW = ctx.measureText(priceText).width
+            ctx.fillStyle = "rgba(255,255,255,0.5)"
+            ctx.font = `${subFontSize * 0.85}px sans-serif`
+            ctx.fillText(` ${opts.retailPrice}`, pad + priceW, curY + subFontSize)
+            // Strikethrough
+            const oldW = ctx.measureText(` ${opts.retailPrice}`).width
+            ctx.fillStyle = "rgba(255,255,255,0.5)"
+            ctx.fillRect(pad + priceW, curY + subFontSize * 0.6, oldW, 2)
+          }
+        }
+
+        // CTA button right-aligned
+        if (opts.cta) {
+          ctx.font = `bold ${ctaFontSize}px sans-serif`
+          const ctaW = ctx.measureText(opts.cta).width + 40
+          const ctaH = ctaFontSize * 2
+          const ctaX = w - pad - ctaW
+          const ctaY = h - pad - ctaH
+          ctx.fillStyle = colors.cta
+          drawRoundRect(ctx, ctaX, ctaY, ctaW, ctaH, 6)
+          ctx.fillStyle = colors.ctaText
+          ctx.textAlign = "center"
+          ctx.fillText(opts.cta, ctaX + ctaW / 2, ctaY + ctaH / 2 + ctaFontSize / 3)
+        }
+      }
+
+      // ─── Layout: centered ────────────────────────
+      if (opts.layout === "centered") {
+        // Full dark overlay
+        ctx.fillStyle = "rgba(0,0,0,0.55)"
+        ctx.fillRect(0, 0, w, h)
+
+        // Centered content box
+        const boxW = w * 0.75
+        const boxH = h * 0.45
+        const boxX = (w - boxW) / 2
+        const boxY = (h - boxH) / 2
+        ctx.fillStyle = colors.bg
+        drawRoundRect(ctx, boxX, boxY, boxW, boxH, 16)
+
+        let curY = boxY + pad * 1.5
+
+        // Product title small
+        if (opts.productTitle) {
+          ctx.textAlign = "center"
+          ctx.fillStyle = colors.cta
+          ctx.font = `600 ${subFontSize * 0.9}px sans-serif`
+          ctx.fillText(opts.productTitle.toUpperCase(), w / 2, curY + subFontSize)
+          curY += subFontSize + pad * 0.8
+        }
+
+        // Headline
+        ctx.fillStyle = colors.text
+        ctx.font = `bold ${headlineFontSize}px sans-serif`
         ctx.textAlign = "center"
-        ctx.fillText(cta, w / 2, ctaY + ctaHeight / 2 + ctaFontSize / 3)
+        const lines = wordWrap(ctx, opts.headline, boxW - pad * 2)
+        const lineH = headlineFontSize * 1.25
+        lines.forEach((line, i) => {
+          ctx.fillText(line, w / 2, curY + lineH + i * lineH)
+        })
+        curY += lineH * lines.length + pad
+
+        // Price
+        if (opts.discountPrice || opts.retailPrice) {
+          ctx.font = `bold ${subFontSize * 1.2}px sans-serif`
+          ctx.fillStyle = colors.cta
+          const txt = opts.discountPrice
+            ? `${opts.discountPrice}${opts.retailPrice ? `  (reg. ${opts.retailPrice})` : ""}`
+            : opts.retailPrice || ""
+          ctx.fillText(txt, w / 2, curY)
+          curY += subFontSize * 1.5
+        }
+
+        // CTA
+        if (opts.cta) {
+          ctx.font = `bold ${ctaFontSize}px sans-serif`
+          const ctaW = ctx.measureText(opts.cta).width + 60
+          const ctaH = ctaFontSize * 2.2
+          ctx.fillStyle = colors.cta
+          drawRoundRect(ctx, (w - ctaW) / 2, curY, ctaW, ctaH, 6)
+          ctx.fillStyle = colors.ctaText
+          ctx.fillText(opts.cta, w / 2, curY + ctaH / 2 + ctaFontSize / 3)
+        }
+      }
+
+      // ─── Layout: left-panel ──────────────────────
+      if (opts.layout === "left-panel") {
+        const panelW = Math.round(w * 0.42)
+        ctx.fillStyle = colors.bg
+        ctx.fillRect(0, 0, panelW, h)
+
+        // Accent stripe
+        ctx.fillStyle = colors.cta
+        ctx.fillRect(panelW - 4, 0, 4, h)
+
+        let curY = pad * 2
+
+        // Product title
+        if (opts.productTitle) {
+          ctx.textAlign = "left"
+          ctx.fillStyle = colors.cta
+          ctx.font = `600 ${subFontSize * 0.85}px sans-serif`
+          ctx.fillText(opts.productTitle.toUpperCase(), pad, curY + subFontSize)
+          curY += subFontSize + pad
+        }
+
+        // Headline
+        ctx.fillStyle = colors.text
+        ctx.font = `bold ${Math.round(headlineFontSize * 0.9)}px sans-serif`
+        ctx.textAlign = "left"
+        const hfs = Math.round(headlineFontSize * 0.9)
+        const lines = wordWrap(ctx, opts.headline, panelW - pad * 2)
+        const lineH = hfs * 1.25
+        lines.forEach((line, i) => {
+          ctx.fillText(line, pad, curY + lineH + i * lineH)
+        })
+        curY += lineH * lines.length + pad * 1.5
+
+        // Price
+        if (opts.discountPrice || opts.retailPrice) {
+          ctx.font = `bold ${subFontSize * 1.3}px sans-serif`
+          ctx.fillStyle = colors.cta
+          ctx.fillText(opts.discountPrice || opts.retailPrice || "", pad, curY)
+          if (opts.discountPrice && opts.retailPrice) {
+            ctx.fillStyle = "rgba(255,255,255,0.4)"
+            ctx.font = `${subFontSize}px sans-serif`
+            ctx.fillText(`  was ${opts.retailPrice}`, pad + ctx.measureText(opts.discountPrice).width, curY)
+          }
+          curY += subFontSize * 2
+        }
+
+        // CTA
+        if (opts.cta) {
+          ctx.font = `bold ${ctaFontSize}px sans-serif`
+          const ctaW = Math.min(ctx.measureText(opts.cta).width + 40, panelW - pad * 2)
+          const ctaH = ctaFontSize * 2.2
+          ctx.fillStyle = colors.cta
+          drawRoundRect(ctx, pad, curY, ctaW, ctaH, 6)
+          ctx.fillStyle = colors.ctaText
+          ctx.textAlign = "center"
+          ctx.fillText(opts.cta, pad + ctaW / 2, curY + ctaH / 2 + ctaFontSize / 3)
+        }
       }
 
       resolve(canvas.toDataURL("image/png"))
@@ -212,9 +413,20 @@ function FieldRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-export function AdCard({ variation, index, showImageButton = false, productImageBase64, productImageMediaType }: AdCardProps) {
+export function AdCard({
+  variation,
+  index,
+  showImageButton = false,
+  productImageBase64,
+  productImageMediaType,
+  productTitle,
+  retailPrice,
+  discountPrice,
+}: AdCardProps) {
   const [copied, setCopied] = useState(false)
   const [generatedImage, setGeneratedImage] = useState<string | null>(null)
+  const [currentLayout, setCurrentLayout] = useState(0)
+  const [currentColor, setCurrentColor] = useState(0)
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(getCardText(variation))
@@ -222,19 +434,44 @@ export function AdCard({ variation, index, showImageButton = false, productImage
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const handleCreateOverlay = useCallback(async () => {
+  const generateWithStyle = useCallback(async (layoutIdx: number, colorIdx: number) => {
     if (!productImageBase64 || !productImageMediaType) return
 
     const imageSrc = `data:${productImageMediaType};base64,${productImageBase64}`
     const { headline, cta } = getOverlayText(variation)
 
     try {
-      const result = await createOverlayImage(imageSrc, headline, cta)
+      const result = await createOverlayImage(imageSrc, {
+        headline,
+        cta,
+        productTitle,
+        retailPrice,
+        discountPrice,
+        layout: LAYOUT_STYLES[layoutIdx % LAYOUT_STYLES.length],
+        colorIndex: colorIdx,
+      })
       setGeneratedImage(result)
     } catch {
-      // Silently fail — button just won't produce an image
+      // Silently fail
     }
-  }, [productImageBase64, productImageMediaType, variation])
+  }, [productImageBase64, productImageMediaType, variation, productTitle, retailPrice, discountPrice])
+
+  const handleCreateOverlay = useCallback(async () => {
+    // Use the variation index to pick a default style so each card looks different
+    const layoutIdx = index % LAYOUT_STYLES.length
+    const colorIdx = index % ACCENT_COLORS.length
+    setCurrentLayout(layoutIdx)
+    setCurrentColor(colorIdx)
+    await generateWithStyle(layoutIdx, colorIdx)
+  }, [index, generateWithStyle])
+
+  const handleShuffle = useCallback(async () => {
+    const nextLayout = (currentLayout + 1) % LAYOUT_STYLES.length
+    const nextColor = nextLayout === 0 ? (currentColor + 1) % ACCENT_COLORS.length : currentColor
+    setCurrentLayout(nextLayout)
+    setCurrentColor(nextColor)
+    await generateWithStyle(nextLayout, nextColor)
+  }, [currentLayout, currentColor, generateWithStyle])
 
   const handleDownloadImage = () => {
     if (!generatedImage) return
@@ -283,13 +520,22 @@ export function AdCard({ variation, index, showImageButton = false, productImage
               alt="Ad with text overlay"
               className="w-full object-cover"
             />
-            <button
-              onClick={handleDownloadImage}
-              className="absolute top-2 right-2 rounded-full bg-background/80 backdrop-blur-sm p-1.5 hover:bg-background transition-colors border border-border"
-              title="Download image"
-            >
-              <Download className="h-4 w-4" />
-            </button>
+            <div className="absolute top-2 right-2 flex gap-1.5">
+              <button
+                onClick={handleShuffle}
+                className="rounded-full bg-background/80 backdrop-blur-sm p-1.5 hover:bg-background transition-colors border border-border"
+                title="Try different style"
+              >
+                <Shuffle className="h-4 w-4" />
+              </button>
+              <button
+                onClick={handleDownloadImage}
+                className="rounded-full bg-background/80 backdrop-blur-sm p-1.5 hover:bg-background transition-colors border border-border"
+                title="Download image"
+              >
+                <Download className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         )}
 
@@ -357,11 +603,20 @@ export function AdCard({ variation, index, showImageButton = false, productImage
             <Button
               variant="outline"
               size="sm"
-              onClick={handleCreateOverlay}
+              onClick={generatedImage ? handleShuffle : handleCreateOverlay}
               className="w-full"
             >
-              <ImageIcon className="h-3.5 w-3.5 mr-1.5" />
-              {generatedImage ? "Regenerate Image" : "Create Ad Image"}
+              {generatedImage ? (
+                <>
+                  <Shuffle className="h-3.5 w-3.5 mr-1.5" />
+                  Try Different Style
+                </>
+              ) : (
+                <>
+                  <ImageIcon className="h-3.5 w-3.5 mr-1.5" />
+                  Create Ad Image
+                </>
+              )}
             </Button>
           </div>
         )}
@@ -370,5 +625,4 @@ export function AdCard({ variation, index, showImageButton = false, productImage
   )
 }
 
-// Export helper for use in other components
 export { getCardText }

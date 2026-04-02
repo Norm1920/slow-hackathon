@@ -316,7 +316,7 @@ export default function Home() {
               <h2 className="text-xl font-semibold mb-4">
                 Generated Ad Creative
               </h2>
-              <ResultsGrid variations={variations} wantImages={wantImages} productImageBase64={imageBase64} productImageMediaType={imageMediaType} />
+              <ResultsGrid variations={variations} wantImages={wantImages} productImageBase64={imageBase64} productImageMediaType={imageMediaType} productTitle={productTitle} retailPrice={retailPrice} discountPrice={discountPrice} />
             </div>
           </>
         )}
